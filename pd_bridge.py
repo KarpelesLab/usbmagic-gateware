@@ -116,21 +116,22 @@ class Top(Elaboratable):
         # NOTE: a plain add_register (auto write_strobe) does not latch writes in
         # this LUNA version — only registers given an explicit write_strobe do
         # (as the I2C command registers above). Provide one so REG_VBUS stores.
+        # We store this register OURSELVES instead of relying on add_register's
+        # internal value signal: the debug LEDs proved the write_strobe fires for
+        # this address but add_register's value never latched (while the I2C cmd
+        # registers, identical code, do). add_sfr gives us write_signal (= the
+        # word received, valid while write_strobe is high) and write_strobe; we
+        # latch it straight into the 8-bit switch register on the strobe, and feed
+        # the same register back as the read value.
         vbus_strobe = Signal(name="vbus_strobe")
-        vbus = regs.add_register(REG_VBUS, size=32, name="vbus", init=0, write_strobe=vbus_strobe)
-        # Re-latch the register into the actual switch outputs one cycle after the
-        # write strobe (when `vbus` holds the new value). This also gives the
-        # strobe an external consumer, which — empirically — is what makes the
-        # register store at all in this JTAGRegisterInterface version (registers
-        # whose write_strobe is only used internally, like a plain add_register,
-        # did not latch; the I2C command registers, whose strobe is consumed, do).
-        vbus_loaded = Signal(name="vbus_loaded")
-        m.d.sync += vbus_loaded.eq(vbus_strobe)
+        vbus_wval = Signal(32, name="vbus_wval")
         switches = Signal(8, init=0, name="vbus_switches")
-        with m.If(vbus_loaded):
-            m.d.sync += switches.eq(vbus[0:8])
-        # DEBUG: latch high the first time the VBUS register is ever written, to
-        # tell "write reaches reg 7" from "write reaches but doesn't store".
+        regs.add_sfr(
+            REG_VBUS, read=switches, write_signal=vbus_wval, write_strobe=vbus_strobe
+        )
+        with m.If(vbus_strobe):
+            m.d.sync += switches.eq(vbus_wval[0:8])
+        # DEBUG: latch high the first time the VBUS register is ever written.
         vbus_seen = Signal(name="vbus_seen")
         with m.If(vbus_strobe):
             m.d.sync += vbus_seen.eq(1)
