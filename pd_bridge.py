@@ -123,11 +123,17 @@ class Top(Elaboratable):
             platform.request("control_vbus_in_en").o.eq(vbus[5]),
         ]
 
-        # Heartbeat so it's visually distinct: LED0 blinks.
+        # LED0 heartbeat; LED1-5 mirror the VBUS register so switch state is
+        # visible on the board (debug): LED1=target_c, LED2=aux, LED3=aux_in,
+        # LED4=control, LED5=control_in.
         counter = Signal(25)
         m.d.sync += counter.eq(counter + 1)
-        led0 = platform.request("led", 0, dir="o").o
-        m.d.comb += led0.eq(counter[-1])
+        m.d.comb += platform.request("led", 0, dir="o").o.eq(counter[-1])
+        m.d.comb += platform.request("led", 1, dir="o").o.eq(vbus[0])
+        m.d.comb += platform.request("led", 2, dir="o").o.eq(vbus[2])
+        m.d.comb += platform.request("led", 3, dir="o").o.eq(vbus[4])
+        m.d.comb += platform.request("led", 4, dir="o").o.eq(vbus[1])
+        m.d.comb += platform.request("led", 5, dir="o").o.eq(vbus[5])
 
         return m
 
