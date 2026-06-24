@@ -21,10 +21,12 @@ from luna.gateware.architecture.car import LunaECP5DomainGenerator
 from luna.gateware.interface.jtag import JTAGRegisterInterface
 
 # Register map (read/written by the host over JTAG).
-REG_ID = 1        # read-only identity, to confirm the bridge is live
-REG_GPIO_OUT = 2  # bit0 = SCL level (push-pull), bit1 = SDA drive-low enable
-REG_GPIO_IN = 3   # bit0 = SDA line level, bit1 = FUSB302B INT#
-REG_SCRATCH = 4   # read/write scratch, to exercise the register path
+REG_ID = 1            # read-only identity, to confirm the bridge is live
+REG_GPIO_OUT = 2      # TARGET-C: bit0 = SCL level (push-pull), bit1 = SDA drive-low
+REG_GPIO_IN = 3       # TARGET-C: bit0 = SDA line level, bit1 = FUSB302B INT#
+REG_SCRATCH = 4       # read/write scratch, to exercise the register path
+REG_AUX_GPIO_OUT = 5  # AUX: bit0 = SCL level, bit1 = SDA drive-low
+REG_AUX_GPIO_IN = 6   # AUX: bit0 = SDA line level, bit1 = FUSB302B INT#
 
 # "uPDB" — usbmagic PD bridge.
 ID_MAGIC = 0x7550_4442
@@ -59,6 +61,16 @@ class Top(Elaboratable):
 
         # Live inputs: SDA line and the FUSB302B interrupt.
         regs.add_sfr(REG_GPIO_IN, read=Cat(tc.sda.i, tc.int.i))
+
+        # AUX Type-C controller (FUSB302B), same open-drain-GPIO scheme.
+        aux = platform.request("aux_type_c")
+        aux_out = regs.add_register(REG_AUX_GPIO_OUT, size=2, name="aux_gpio_out", init=0b01)
+        m.d.comb += [
+            aux.scl.o.eq(aux_out[0]),
+            aux.sda.o.eq(0),
+            aux.sda.oe.eq(aux_out[1]),
+        ]
+        regs.add_sfr(REG_AUX_GPIO_IN, read=Cat(aux.sda.i, aux.int.i))
 
         # Heartbeat so it's visually distinct from blinky: LED0 blinks, LED5
         # mirrors the SDA line, the rest are off.
