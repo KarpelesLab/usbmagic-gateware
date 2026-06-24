@@ -135,6 +135,12 @@ class Top(Elaboratable):
         vbus_seen = Signal(name="vbus_seen")
         with m.If(vbus_strobe):
             m.d.sync += vbus_seen.eq(1)
+        # DEBUG: latch a CONSTANT on the same strobe. If this lights but
+        # switches[0] doesn't, the latch fires fine and word_received is the
+        # signal that isn't reaching the top module at the strobe.
+        vbus_const = Signal(8, init=0, name="vbus_const")
+        with m.If(vbus_strobe):
+            m.d.sync += vbus_const.eq(0xFF)
         m.d.comb += [
             platform.request("target_c_vbus_en").o.eq(switches[0]),
             platform.request("control_vbus_en").o.eq(switches[1]),
@@ -161,7 +167,7 @@ class Top(Elaboratable):
         m.d.comb += platform.request("led", 2, dir="o").o.eq(switches[2])
         m.d.comb += platform.request("led", 3, dir="o").o.eq(vbus_seen)
         m.d.comb += platform.request("led", 4, dir="o").o.eq(switches[0])
-        m.d.comb += platform.request("led", 5, dir="o").o.eq(switches[5])
+        m.d.comb += platform.request("led", 5, dir="o").o.eq(vbus_const[0])
 
         return m
 
