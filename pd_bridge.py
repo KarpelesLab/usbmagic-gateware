@@ -84,6 +84,11 @@ class Top(Elaboratable):
             cmd = regs.add_register(
                 cmd_addr, size=32, name=f"{name}_cmd", write_strobe=cmd_strobe
             )
+            # DEBUG: latch high the first time THIS cmd register is ever written.
+            if name == "tc":
+                tc_cmd_seen = Signal(name="tc_cmd_seen")
+                with m.If(cmd_strobe):
+                    m.d.sync += tc_cmd_seen.eq(1)
 
             # add_register latches the new value on the cycle AFTER write_strobe,
             # so delay the strobe one cycle to line it up with the updated `cmd`.
@@ -124,6 +129,11 @@ class Top(Elaboratable):
         switches = Signal(8, init=0, name="vbus_switches")
         with m.If(vbus_loaded):
             m.d.sync += switches.eq(vbus[0:8])
+        # DEBUG: latch high the first time the VBUS register is ever written, to
+        # tell "write reaches reg 7" from "write reaches but doesn't store".
+        vbus_seen = Signal(name="vbus_seen")
+        with m.If(vbus_strobe):
+            m.d.sync += vbus_seen.eq(1)
         m.d.comb += [
             platform.request("target_c_vbus_en").o.eq(switches[0]),
             platform.request("control_vbus_en").o.eq(switches[1]),
@@ -139,11 +149,17 @@ class Top(Elaboratable):
         # LED4=control, LED5=control_in.
         counter = Signal(25)
         m.d.sync += counter.eq(counter + 1)
+        # DEBUG mapping (one flash localizes the REG_VBUS write bug):
+        #   LED0 heartbeat (alive)
+        #   LED1 tc_cmd_seen  : reg 2 (I2C) write_strobe EVER fired  -> expect ON
+        #   LED3 vbus_seen    : reg 7 (VBUS) write_strobe EVER fired  -> the test
+        #   LED4 switches[0]  : reg 7 actually STORED + re-latched bit0
+        #   LED5 switches[2]
         m.d.comb += platform.request("led", 0, dir="o").o.eq(counter[-1])
-        m.d.comb += platform.request("led", 1, dir="o").o.eq(switches[0])
+        m.d.comb += platform.request("led", 1, dir="o").o.eq(tc_cmd_seen)
         m.d.comb += platform.request("led", 2, dir="o").o.eq(switches[2])
-        m.d.comb += platform.request("led", 3, dir="o").o.eq(switches[4])
-        m.d.comb += platform.request("led", 4, dir="o").o.eq(switches[1])
+        m.d.comb += platform.request("led", 3, dir="o").o.eq(vbus_seen)
+        m.d.comb += platform.request("led", 4, dir="o").o.eq(switches[0])
         m.d.comb += platform.request("led", 5, dir="o").o.eq(switches[5])
 
         return m
