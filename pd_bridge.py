@@ -30,6 +30,13 @@ REG_TC_CMD = 2        # TARGET-C I2C command  (write)
 REG_TC_STATUS = 3     # TARGET-C I2C status   (read)
 REG_AUX_CMD = 5       # AUX I2C command       (write)
 REG_AUX_STATUS = 6    # AUX I2C status        (read)
+REG_VBUS = 7          # VBUS load-switch control (write); init 0 = all switches open
+
+# REG_VBUS bits (each enables a port's VBUS onto the shared TARGET-A rail):
+VBUS_TARGET_C = 1 << 0  # rail -> TARGET-C
+VBUS_CONTROL = 1 << 1   # host/CONTROL 5V -> rail  (DANGEROUS to mix with a PD supply)
+VBUS_AUX = 1 << 2       # AUX supply -> rail
+VBUS_TARGET_A_DISCHARGE = 1 << 3
 
 # Command register bits.
 CMD_START = 1 << 0
@@ -95,6 +102,17 @@ class Top(Elaboratable):
                 status_addr,
                 read=Cat(i2c.busy, i2c.ack_o, Const(0, 6), i2c.data_o),
             )
+
+        # VBUS load-switch control. Each port's VBUS connects to the shared
+        # TARGET-A rail (per the analyzer gateware's model); init 0 keeps every
+        # switch open. The host bridges e.g. AUX -> TARGET-C to charge a device.
+        vbus = regs.add_register(REG_VBUS, size=8, name="vbus", init=0)
+        m.d.comb += [
+            platform.request("target_c_vbus_en").o.eq(vbus[0]),
+            platform.request("control_vbus_en").o.eq(vbus[1]),
+            platform.request("aux_vbus_en").o.eq(vbus[2]),
+            platform.request("target_a_discharge").o.eq(vbus[3]),
+        ]
 
         # Heartbeat so it's visually distinct: LED0 blinks.
         counter = Signal(25)
