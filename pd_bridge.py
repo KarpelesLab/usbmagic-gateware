@@ -32,11 +32,13 @@ REG_AUX_CMD = 5       # AUX I2C command       (write)
 REG_AUX_STATUS = 6    # AUX I2C status        (read)
 REG_VBUS = 7          # VBUS load-switch control (write); init 0 = all switches open
 
-# REG_VBUS bits (each enables a port's VBUS onto the shared TARGET-A rail):
-VBUS_TARGET_C = 1 << 0  # rail -> TARGET-C
-VBUS_CONTROL = 1 << 1   # host/CONTROL 5V -> rail  (DANGEROUS to mix with a PD supply)
-VBUS_AUX = 1 << 2       # AUX supply -> rail
+# REG_VBUS bits.
+VBUS_TARGET_C = 1 << 0       # connect TARGET-C VBUS <-> TARGET-A rail
+VBUS_CONTROL = 1 << 1        # connect CONTROL VBUS <-> rail (host 5V; do not mix with a supply)
+VBUS_AUX = 1 << 2            # connect AUX VBUS <-> rail
 VBUS_TARGET_A_DISCHARGE = 1 << 3
+VBUS_AUX_IN = 1 << 4         # let the AUX port's VBUS into the board (input shutoff release)
+VBUS_CONTROL_IN = 1 << 5     # let the CONTROL port's VBUS into the board
 
 # Command register bits.
 CMD_START = 1 << 0
@@ -112,6 +114,9 @@ class Top(Elaboratable):
             platform.request("control_vbus_en").o.eq(vbus[1]),
             platform.request("aux_vbus_en").o.eq(vbus[2]),
             platform.request("target_a_discharge").o.eq(vbus[3]),
+            # Input-shutoff releases (PinsN in the platform: .o=1 lets VBUS in).
+            platform.request("aux_vbus_in_en").o.eq(vbus[4]),
+            platform.request("control_vbus_in_en").o.eq(vbus[5]),
         ]
 
         # Heartbeat so it's visually distinct: LED0 blinks.
