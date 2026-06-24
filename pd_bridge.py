@@ -113,14 +113,25 @@ class Top(Elaboratable):
         # (as the I2C command registers above). Provide one so REG_VBUS stores.
         vbus_strobe = Signal(name="vbus_strobe")
         vbus = regs.add_register(REG_VBUS, size=32, name="vbus", init=0, write_strobe=vbus_strobe)
+        # Re-latch the register into the actual switch outputs one cycle after the
+        # write strobe (when `vbus` holds the new value). This also gives the
+        # strobe an external consumer, which — empirically — is what makes the
+        # register store at all in this JTAGRegisterInterface version (registers
+        # whose write_strobe is only used internally, like a plain add_register,
+        # did not latch; the I2C command registers, whose strobe is consumed, do).
+        vbus_loaded = Signal(name="vbus_loaded")
+        m.d.sync += vbus_loaded.eq(vbus_strobe)
+        switches = Signal(8, init=0, name="vbus_switches")
+        with m.If(vbus_loaded):
+            m.d.sync += switches.eq(vbus[0:8])
         m.d.comb += [
-            platform.request("target_c_vbus_en").o.eq(vbus[0]),
-            platform.request("control_vbus_en").o.eq(vbus[1]),
-            platform.request("aux_vbus_en").o.eq(vbus[2]),
-            platform.request("target_a_discharge").o.eq(vbus[3]),
+            platform.request("target_c_vbus_en").o.eq(switches[0]),
+            platform.request("control_vbus_en").o.eq(switches[1]),
+            platform.request("aux_vbus_en").o.eq(switches[2]),
+            platform.request("target_a_discharge").o.eq(switches[3]),
             # Input-shutoff releases (PinsN in the platform: .o=1 lets VBUS in).
-            platform.request("aux_vbus_in_en").o.eq(vbus[4]),
-            platform.request("control_vbus_in_en").o.eq(vbus[5]),
+            platform.request("aux_vbus_in_en").o.eq(switches[4]),
+            platform.request("control_vbus_in_en").o.eq(switches[5]),
         ]
 
         # LED0 heartbeat; LED1-5 mirror the VBUS register so switch state is
@@ -129,11 +140,11 @@ class Top(Elaboratable):
         counter = Signal(25)
         m.d.sync += counter.eq(counter + 1)
         m.d.comb += platform.request("led", 0, dir="o").o.eq(counter[-1])
-        m.d.comb += platform.request("led", 1, dir="o").o.eq(vbus[0])
-        m.d.comb += platform.request("led", 2, dir="o").o.eq(vbus[2])
-        m.d.comb += platform.request("led", 3, dir="o").o.eq(vbus[4])
-        m.d.comb += platform.request("led", 4, dir="o").o.eq(vbus[1])
-        m.d.comb += platform.request("led", 5, dir="o").o.eq(vbus[5])
+        m.d.comb += platform.request("led", 1, dir="o").o.eq(switches[0])
+        m.d.comb += platform.request("led", 2, dir="o").o.eq(switches[2])
+        m.d.comb += platform.request("led", 3, dir="o").o.eq(switches[4])
+        m.d.comb += platform.request("led", 4, dir="o").o.eq(switches[1])
+        m.d.comb += platform.request("led", 5, dir="o").o.eq(switches[5])
 
         return m
 
