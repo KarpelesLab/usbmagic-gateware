@@ -15,6 +15,10 @@ def top_from_name(name: str):
         from blinky import Top
 
         return Top()
+    if name == "pd_bridge":
+        from pd_bridge import Top
+
+        return Top()
     raise SystemExit(f"unknown design: {name!r}")
 
 

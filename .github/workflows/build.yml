@@ -14,19 +14,21 @@ jobs:
       - name: Build toolchain image
         run: docker build -t usbmagic-gateware:ci .
 
-      - name: Build bitstream
+      - name: Build bitstreams
         run: |
           mkdir -p build
           docker run --rm -v "${{ github.workspace }}:/work" -w /work \
-            usbmagic-gateware:ci python3 build.py
+            usbmagic-gateware:ci python3 build.py --design blinky --name usbmagic-blinky
+          docker run --rm -v "${{ github.workspace }}:/work" -w /work \
+            usbmagic-gateware:ci python3 build.py --design pd_bridge --name usbmagic-pd-bridge
 
       - name: Show result
         run: ls -l build/*.bit
 
-      - name: Upload bitstream artifact
+      - name: Upload bitstream artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: usbmagic-blinky-bitstream
+          name: usbmagic-bitstreams
           path: build/*.bit
           if-no-files-found: error
 
