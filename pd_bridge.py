@@ -108,7 +108,11 @@ class Top(Elaboratable):
         # VBUS load-switch control. Each port's VBUS connects to the shared
         # TARGET-A rail (per the analyzer gateware's model); init 0 keeps every
         # switch open. The host bridges e.g. AUX -> TARGET-C to charge a device.
-        vbus = regs.add_register(REG_VBUS, size=8, name="vbus", init=0)
+        # NOTE: a plain add_register (auto write_strobe) does not latch writes in
+        # this LUNA version — only registers given an explicit write_strobe do
+        # (as the I2C command registers above). Provide one so REG_VBUS stores.
+        vbus_strobe = Signal(name="vbus_strobe")
+        vbus = regs.add_register(REG_VBUS, size=8, name="vbus", init=0, write_strobe=vbus_strobe)
         m.d.comb += [
             platform.request("target_c_vbus_en").o.eq(vbus[0]),
             platform.request("control_vbus_en").o.eq(vbus[1]),
