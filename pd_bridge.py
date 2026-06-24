@@ -76,13 +76,18 @@ class Top(Elaboratable):
                 cmd_addr, size=32, name=f"{name}_cmd", write_strobe=cmd_strobe
             )
 
+            # add_register latches the new value on the cycle AFTER write_strobe,
+            # so delay the strobe one cycle to line it up with the updated `cmd`.
+            cmd_loaded = Signal(name=f"{name}_cmd_loaded")
+            m.d.sync += cmd_loaded.eq(cmd_strobe)
+
             # A register write pulses the selected op for one cycle (the
             # initiator ignores strobes while busy; the host polls busy first).
             m.d.comb += [
-                i2c.start.eq(cmd_strobe & cmd[0]),
-                i2c.stop.eq(cmd_strobe & cmd[1]),
-                i2c.write.eq(cmd_strobe & cmd[2]),
-                i2c.read.eq(cmd_strobe & cmd[3]),
+                i2c.start.eq(cmd_loaded & cmd[0]),
+                i2c.stop.eq(cmd_loaded & cmd[1]),
+                i2c.write.eq(cmd_loaded & cmd[2]),
+                i2c.read.eq(cmd_loaded & cmd[3]),
                 i2c.ack_i.eq(cmd[4]),
                 i2c.data_i.eq(cmd[8:16]),
             ]
