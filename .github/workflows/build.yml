@@ -1,0 +1,37 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  bitstream:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build toolchain image
+        run: docker build -t usbmagic-gateware:ci .
+
+      - name: Build bitstream
+        run: |
+          mkdir -p build
+          docker run --rm -v "${{ github.workspace }}:/work" -w /work \
+            usbmagic-gateware:ci python3 build.py
+
+      - name: Show result
+        run: ls -l build/*.bit
+
+      - name: Upload bitstream artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: usbmagic-blinky-bitstream
+          path: build/*.bit
+          if-no-files-found: error
+
+      - name: Attach bitstream to release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/*.bit

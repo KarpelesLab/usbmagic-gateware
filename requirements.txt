@@ -1,0 +1,7 @@
+# Python toolchain for building Cynthion gateware.
+# Versions track the cynthion package's own pins (see its pyproject).
+# Installing `cynthion` also pulls apollo_fpga and pygreat.
+amaranth~=0.5
+luna-usb~=0.2.2
+luna-soc~=0.3.2
+cynthion
