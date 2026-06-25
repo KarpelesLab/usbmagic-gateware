@@ -19,6 +19,10 @@ def top_from_name(name: str):
         from pd_bridge import Top
 
         return Top()
+    if name == "usb_host":
+        from usb_host import Top
+
+        return Top()
     raise SystemExit(f"unknown design: {name!r}")
 
 

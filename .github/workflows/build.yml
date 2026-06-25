@@ -21,6 +21,8 @@ jobs:
             usbmagic-gateware:ci python3 build.py --design blinky --name usbmagic-blinky
           docker run --rm -v "${{ github.workspace }}:/work" -w /work \
             usbmagic-gateware:ci python3 build.py --design pd_bridge --name usbmagic-pd-bridge
+          docker run --rm -v "${{ github.workspace }}:/work" -w /work \
+            usbmagic-gateware:ci python3 build.py --design usb_host --name usbmagic-usb-host
 
       - name: Show result
         run: ls -l build/*.bit
